@@ -32,7 +32,7 @@ def draw_clipped_line_segment(
     linewidth: int,
     planes: List[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]],
     color: Tuple[int, int, int],
-) -> None:
+):
     """Plot the portion of a line segment that lives within a parameterized 3D camera frustum.
 
     Args:
@@ -60,7 +60,12 @@ def draw_clipped_line_segment(
         color,
         linewidth,
     )
-
+    
+    #Rohin code plot points
+    cv2.circle(img, (int(uv_a[0]), int(uv_a[1])), radius=5, color=(255,0,0), thickness=-1)
+    cv2.circle(img, (int(uv_b[0]), int(uv_b[1])), radius=5, color=(255,0,0), thickness=-1)
+    # print(uv_a, uv_b)
+    return [uv_a, uv_b]
 
 def draw_point_cloud_in_img_cv2(img: np.ndarray, xy: np.ndarray, colors: np.ndarray, radius: int = 5) -> np.ndarray:
     """Plot a point cloud in an image by drawing small circles centered at (x,y) locations.

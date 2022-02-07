@@ -7,6 +7,8 @@ from multiprocessing import Pool
 from pathlib import Path
 from typing import Any, Iterable, List, Sequence, Tuple, Union
 
+import time 
+
 import cv2
 import imageio
 import numpy as np
@@ -31,6 +33,8 @@ from argoverse.utils.ffmpeg_utils import ffmpeg_compress_video, write_nonsequent
 from argoverse.utils.frustum_clipping import generate_frustum_planes
 from argoverse.utils.ply_loader import load_ply
 from argoverse.utils.se3 import SE3
+
+from curve_parameterization import *
 
 # logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -58,7 +62,7 @@ def plot_lane_centerlines_in_img(
     """
     Args:
         city_SE3_egovehicle: SE(3) transformation representing egovehicle to city transformation
-        img: Array of shape (M,N,3) representing updated image
+        img: Array of shape (M,N,3) representing original image
         city_name: str, string representing city name, i.e. 'PIT' or 'MIA'
         avm: instance of ArgoverseMap
         camera_config: instance of CameraConfig
@@ -75,8 +79,33 @@ def plot_lane_centerlines_in_img(
 
     query_x, query_y, _ = city_SE3_egovehicle.translation
     local_centerlines = avm.find_local_lane_centerlines(query_x, query_y, city_name)
+    ## Rohin Analysis
+    # print("centerline_points:", len(local_centerlines[0]))
+    local_lanePoints = []
+    lanes_transformed = []
+    lane_lcqs = []
+    # for lane in local_centerlines:
+    #     h = np.mean(lane.T[2])
+    #     num_ctrl_pts = 3
+    #     hs = np.ones((num_ctrl_pts,1))*h
+    #     lane_out = lsq_control_points(lane.T[:2],num_ctrl_pts)
+    #     lane_lcqs.append(np.concatenate((lane_out, hs), axis=1))
+    idx = -1
+    # point_cloud_clipping = []
+    # for i in range(len(local_centerlines)):
+    #     lane = local_centerlines[i]
+    #     # print(type(lane), len(lane))
+    #     n = len(lane)
+    #     points = []
+    #     for j in range(1, int(n/2)):
+    #         points.append(lane[j*2 -1])
+    #     # points = [lane[0], lane[round(n/2)], lane[n-1]]
+    #     local_lanePoints.append(np.array(points))
+        # break
 
     for centerline_city_fr in local_centerlines:
+        lanes_transformed.append([])
+        idx+=1
         color = [intensity + np.random.randint(0, LANE_COLOR_NOISE) - LANE_COLOR_NOISE // 2 for intensity in color]
 
         ground_heights = avm.get_ground_height_at_xy(centerline_city_fr, city_name)
@@ -87,10 +116,12 @@ def plot_lane_centerlines_in_img(
         centerline_egovehicle_fr = city_SE3_egovehicle.inverse().transform_point_cloud(centerline_city_fr)
         centerline_uv_cam = cam_SE3_egovehicle.transform_point_cloud(centerline_egovehicle_fr)
 
-        # can also clip point cloud to nearest LiDAR point depth
+        # can also clip point cloud to nearest LiDAR point depth (bruh why so much time)
+        # start = time.time()
         centerline_uv_cam = clip_point_cloud_to_visible_region(centerline_uv_cam, lidar_pts)
+        # point_cloud_clipping.append(time.time()-start)
         for i in range(centerline_uv_cam.shape[0] - 1):
-            draw_clipped_line_segment(
+            arr = draw_clipped_line_segment(
                 img,
                 centerline_uv_cam[i],
                 centerline_uv_cam[i + 1],
@@ -99,7 +130,18 @@ def plot_lane_centerlines_in_img(
                 planes,
                 color,
             )
-    return img
+            if arr != None:
+                a = arr[0]
+                b = arr[1]
+                for j in range(len(a)):
+                    a[j] = int(a[j])
+                    b[j] = int(b[j])
+                lanes_transformed[idx].append((a,i))
+                if i==centerline_uv_cam.shape[0] - 2:
+                    lanes_transformed[idx].append((b,i+1))
+
+    # print("total time for point_cloud_clipping:", sum(point_cloud_clipping))
+    return img, lanes_transformed, local_centerlines
 
 
 def dump_clipped_3d_cuboids_to_images(

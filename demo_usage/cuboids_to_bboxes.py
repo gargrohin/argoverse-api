@@ -118,7 +118,7 @@ def plot_lane_centerlines_in_img(
 
         # can also clip point cloud to nearest LiDAR point depth (bruh why so much time)
         # start = time.time()
-        centerline_uv_cam = clip_point_cloud_to_visible_region(centerline_uv_cam, lidar_pts)
+        # centerline_uv_cam = clip_point_cloud_to_visible_region(centerline_uv_cam, lidar_pts)
         # point_cloud_clipping.append(time.time()-start)
         for i in range(centerline_uv_cam.shape[0] - 1):
             arr = draw_clipped_line_segment(

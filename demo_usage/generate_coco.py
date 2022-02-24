@@ -64,88 +64,102 @@ def createJsonTemplate():
 
     return data
 
-def createDataset(am, data, argoverse_loader):
+def createDataset(am, data, data_path):
 
     # log_id = argoverse_loader.log_list[log_index]
-
+    # argoverse_loader = ArgoverseTrackingLoader(data_path)
 
     images_dicts = []
     lane_ann = []
     start = time.time()
     ann_id = -1
-    cameras = ["ring_front_center", "ring_front_right", "ring_front_left",\
-                "ring_rear_right", "ring_rear_left", "ring_side_right", "ring_side_left"]
-    num_ctrl_pts = 10
-    camera_id = -1            
-    for camera in cameras:
-        for log_index in range(20):
+
+    for data_index in range(4):
+        train_path = data_path + str(data_index+1) + '/'
+        argoverse_loader = ArgoverseTrackingLoader(train_path)
+        cameras = ["ring_front_center", "ring_front_right", "ring_front_left",\
+                    "ring_rear_right", "ring_rear_left", "ring_side_right", "ring_side_left"]
+        num_ctrl_pts = 10         
+        
+        for log_index in range(len(argoverse_loader)):
             argoverse_data = argoverse_loader[log_index]
             city_name = argoverse_data.city_name
-            camera_id+=1
-            calib = argoverse_data.get_calibration(camera = camera)
-            planes = generate_frustum_planes(calib.camera_config.intrinsic.copy(), camera)
-            for idx in range(argoverse_data.num_lidar_frame):
-                image_id = idx + camera_id*10000 + log_index*1000
-                
-                city_to_egovehicle_se3 = argoverse_data.get_pose(idx)
+            camera_id = -1   
+            for camera in cameras:
+                camera_id+=1
+                calib = argoverse_data.get_calibration(camera = camera)
+                planes = generate_frustum_planes(calib.camera_config.intrinsic.copy(), camera)
+                for idx in range(argoverse_data.num_lidar_frame):
+                    image_id = idx + camera_id*1000 + log_index*10000 + data_index*100000
+                    
+                    city_to_egovehicle_se3 = argoverse_data.get_pose(idx)
 
-                name = argoverse_data.get_image_sync(idx,camera = camera, load=False)
-                img = argoverse_data.get_image_sync(idx,camera = camera)
-                img_dic = {
-                    "license": 1,
-                    "file_name": name,
-                    "coco_url": "NA",
-                    "height": img.shape[0],
-                    "width": img.shape[1],
-                    "date_captured": "idk",
-                    "id": image_id
-                }
-                images_dicts.append(img_dic)
-
-                # objects = argoverse_data.get_label_object(idx)
-
-                lidar_pts = argoverse_data.get_lidar(idx)
-
-                img_wlane, lanes, lanes_bird = plot_lane_centerlines_in_img(lidar_pts, city_to_egovehicle_se3, img, city_name, am, calib.camera_config, planes)
-                
-                
-                for lane in lanes:
-                    ann_id+=1
-                    if lane==[]:
-                        continue
-                    dic = {
-                        "num_keypoints": len(lane),
-                        "area": 0,
-                        "iscrowd": 0,
-                        "keypoints": [],
-                        "image_id": image_id,
-                        "category_id": 1,
-                        "id": ann_id
+                    name = argoverse_data.get_image_sync(idx,camera = camera, load=False)
+                    img = argoverse_data.get_image_sync(idx,camera = camera)
+                    img_dic = {
+                        "license": 1,
+                        "file_name": name,
+                        "coco_url": "NA",
+                        "height": img.shape[0],
+                        "width": img.shape[1],
+                        "date_captured": "idk",
+                        "id": image_id
                     }
-                    keypoints = []
+                    images_dicts.append(img_dic)
+
+                    # objects = argoverse_data.get_label_object(idx)
+
+                    lidar_pts = argoverse_data.get_lidar(idx)
+
+                    img_wlane, lanes, lanes_bird, lanes_ids = plot_lane_centerlines_in_img(lidar_pts, city_to_egovehicle_se3, img, city_name, am, calib.camera_config, planes)
                     
-                    p = 0
-                    for c in range(num_ctrl_pts):
-                        l = lane[p]
-                        if l[1] != c:
-                            for i in range(3):
-                                keypoints.append(0)
-                        else:
-                            keypoints.append(l[0][0])
-                            keypoints.append(l[0][1])
-                            keypoints.append(2)
-                            if p<len(lane)-1:
-                                p+=1
-                    
-                    
-                    dic["keypoints"] = keypoints
-                    
-                    lane_ann.append(dic)
-        
-        print("time taken for camera ", camera, ": ", time.time()-start)
-        # if visualize:
-        #     display(Image.fromarray(img_wlane))
-        start = time.time()
+                    for lane_idx in range(len(lanes)):
+                        lane = lanes[lane_idx]
+                        lane_id = lanes_ids[lane_idx]
+                        ## check if intersection or not
+                        is_intersection = am.lane_is_in_intersection(lane_id, city_name)
+                        if is_intersection:
+                            continue
+                    # for lane in lanes:
+                        ann_id+=1
+                        if lane==[]:
+                            continue
+                        dic = {
+                            "num_keypoints": len(lane),
+                            "area": 0,
+                            "iscrowd": 0,
+                            "keypoints": [],
+                            "image_id": image_id,
+                            "category_id": 1,
+                            "id": ann_id
+                        }
+                        keypoints = []
+                        
+                        p = 0
+                        for c in range(num_ctrl_pts):
+                            l = lane[p]
+                            if l[1] != c:
+                                for i in range(3):
+                                    keypoints.append(0)
+                            else:
+                                keypoints.append(l[0][0])
+                                keypoints.append(l[0][1])
+                                keypoints.append(2)
+                                if p<len(lane)-1:
+                                    p+=1
+                        
+                        
+                        dic["keypoints"] = keypoints
+                        
+                        lane_ann.append(dic)
+            
+                print("time taken for camera ", camera, ": ", time.time()-start)
+                # if visualize:
+                #     display(Image.fromarray(img_wlane))
+                start = time.time()
+            print("-------------------------")
+        print("********************************")
+    
 
     data["images"] = images_dicts
     data["annotations"] = lane_ann
@@ -160,7 +174,7 @@ if __name__ == "__main__":
 
     am = ArgoverseMap()
 
-    tracking_dataset_dir = '../../argoverse_tracking_data/argoverse-tracking/train1/'
+    tracking_dataset_dir = '/home/rgarg/workspace/argoverse_tracking_data/argoverse-tracking/train'
 
     # Map from a bird's-eye-view (BEV)
     # dataset_dir = tracking_dataset_dir
@@ -171,14 +185,14 @@ if __name__ == "__main__":
     logger.setLevel(logging.CRITICAL)
 
     log_index = 0
-    argoverse_loader = ArgoverseTrackingLoader(tracking_dataset_dir)
+    # argoverse_loader = ArgoverseTrackingLoader(tracking_dataset_dir)
     # log_id = argoverse_loader.log_list[log_index]
     # argoverse_data = argoverse_loader[log_index]
     # city_name = argoverse_data.city_name
 
     data = createJsonTemplate()
-    data = createDataset(am, data, argoverse_loader)
-    json_path = "../../coco_format_train1_kp10.json"
+    data = createDataset(am, data, tracking_dataset_dir)
+    json_path = "/home/rgarg/workspace/coco_format_trainall_kp10.json"
     dump_json(data, json_path)
 
     print("DONE, file dumped to path: ", json_path)

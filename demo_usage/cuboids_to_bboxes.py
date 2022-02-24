@@ -79,6 +79,7 @@ def plot_lane_centerlines_in_img(
 
     query_x, query_y, _ = city_SE3_egovehicle.translation
     local_centerlines = avm.find_local_lane_centerlines(query_x, query_y, city_name)
+    local_centerlines_ids = avm.get_lane_ids_in_xy_bbox(query_x, query_y, city_name, query_search_range_manhattan=30.0)
     ## Rohin Analysis
     # print("centerline_points:", len(local_centerlines[0]))
     local_lanePoints = []
@@ -141,7 +142,7 @@ def plot_lane_centerlines_in_img(
                     lanes_transformed[idx].append((b,i+1))
 
     # print("total time for point_cloud_clipping:", sum(point_cloud_clipping))
-    return img, lanes_transformed, local_centerlines
+    return img, lanes_transformed, local_centerlines, local_centerlines_ids
 
 
 def dump_clipped_3d_cuboids_to_images(

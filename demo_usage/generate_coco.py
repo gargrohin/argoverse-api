@@ -77,8 +77,8 @@ def createDataset(am, data, data_path):
     for data_index in range(4):
         train_path = data_path + str(data_index+1) + '/'
         argoverse_loader = ArgoverseTrackingLoader(train_path)
-        cameras = ["ring_front_center", "ring_front_right", "ring_front_left",\
-                    "ring_rear_right", "ring_rear_left", "ring_side_right", "ring_side_left"]
+        cameras = ["ring_front_center"]#, "ring_front_right", "ring_front_left",\
+                    #"ring_rear_right", "ring_rear_left", "ring_side_right", "ring_side_left"]
         num_ctrl_pts = 10         
         
         for log_index in range(len(argoverse_loader)):

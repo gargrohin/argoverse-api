@@ -192,7 +192,7 @@ if __name__ == "__main__":
 
     data = createJsonTemplate()
     data = createDataset(am, data, tracking_dataset_dir)
-    json_path = "/home/rgarg/workspace/coco_format_trainall_kp10.json"
+    json_path = "/home/rgarg/workspace/coco_format_trainall_front_nointersection_kp10.json"
     dump_json(data, json_path)
 
     print("DONE, file dumped to path: ", json_path)
